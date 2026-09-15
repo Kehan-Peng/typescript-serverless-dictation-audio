@@ -1,0 +1,4 @@
+{
+  "desc": "听写音频生成器",
+  "rules": [{ "action": "allow", "page": "*" }]
+}

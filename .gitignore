@@ -1,0 +1,7 @@
+node_modules/
+miniprogram_npm/
+cloudfunctions/**/node_modules/
+.DS_Store
+project.private.config.json
+coverage/
+work/

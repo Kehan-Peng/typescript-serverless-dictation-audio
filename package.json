@@ -1,0 +1,16 @@
+{
+  "name": "dictation-audio-miniprogram",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && tsc -p cloudfunctions/generateAudio/tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "miniprogram-api-typings": "^4.0.7",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
+  }
+}

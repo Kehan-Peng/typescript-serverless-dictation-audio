@@ -1,0 +1,92 @@
+<view class="page">
+  <view class="hero">
+    <text class="title">听写音频生成器</text>
+    <text class="subtitle">粘贴词语，检查停顿，一次生成完整音频</text>
+  </view>
+
+  <view class="card">
+    <text class="section-title">1. 输入词语</text>
+    <textarea
+      class="textarea"
+      value="{{rawText}}"
+      placeholder="每行输入一个完整词语\n例如：\n清晨\n狂风暴雨"
+      maxlength="-1"
+      bindinput="onRawTextInput"
+      disabled="{{status === 'generating'}}"
+    />
+    <button class="secondary-button" bindtap="onParse" disabled="{{status === 'generating'}}">解析词语</button>
+  </view>
+
+  <view class="card" wx:if="{{items.length}}">
+    <view class="section-row">
+      <text class="section-title">2. 检查词语与停顿</text>
+      <text class="count">共 {{items.length}} 个</text>
+    </view>
+    <view class="preview-header">
+      <text>词语</text>
+      <text>字数</text>
+      <text>停顿</text>
+    </view>
+    <view class="preview-row" wx:for="{{items}}" wx:key="id">
+      <view class="word-cell">
+        <text class="word">{{item.text}}</text>
+        <text class="warning" wx:if="{{item.warning}}">⚠️ 请检查字数</text>
+      </view>
+      <text class="char-count">{{item.charCount}}字</text>
+      <view class="pause-editor">
+        <input
+          class="pause-input"
+          type="digit"
+          value="{{item.pauseSeconds}}"
+          data-index="{{index}}"
+          bindinput="onPauseInput"
+          disabled="{{status === 'generating'}}"
+        />
+        <text>秒</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{items.length}}">
+    <text class="section-title">3. 语音设置</text>
+    <label class="field">
+      <text class="field-label">Voice ID</text>
+      <input
+        class="text-input"
+        value="{{voiceId}}"
+        placeholder="填写 MiniMax voice_id"
+        bindinput="onVoiceIdInput"
+        disabled="{{status === 'generating'}}"
+      />
+    </label>
+    <label class="field">
+      <text class="field-label">语速（0.5～2）</text>
+      <input
+        class="text-input"
+        type="digit"
+        value="{{speed}}"
+        bindinput="onSpeedInput"
+        disabled="{{status === 'generating'}}"
+      />
+    </label>
+
+    <button
+      class="primary-button"
+      bindtap="onGenerate"
+      loading="{{status === 'generating'}}"
+      disabled="{{status === 'generating'}}"
+    >{{status === 'generating' ? '正在生成…' : '生成听写音频'}}</button>
+    <text class="hint">每次生成只调用一次 MiniMax，通常需要稍等片刻。</text>
+  </view>
+
+  <view class="message error" wx:if="{{errorMessage}}">{{errorMessage}}</view>
+
+  <view class="card result" wx:if="{{audioUrl}}">
+    <text class="section-title">音频已生成</text>
+    <text class="result-note">链接临时有效，请及时播放。</text>
+    <view class="player-actions">
+      <button class="primary-button player-button" bindtap="onTogglePlay">{{isPlaying ? '暂停' : '播放'}}</button>
+      <button class="secondary-button player-button" bindtap="onBackToEdit">返回修改</button>
+    </view>
+  </view>
+</view>
