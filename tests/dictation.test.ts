@@ -3,6 +3,32 @@ import { countChineseChars } from '../miniprogram/utils/chinese'
 import { getDefaultPause } from '../miniprogram/utils/pause'
 import { parseInput } from '../miniprogram/utils/parser'
 import { buildTtsText, validateItemsForGeneration } from '../miniprogram/utils/ttsText'
+import { createDefaultAudioFileName, normalizeMp3FileName } from '../miniprogram/utils/audioFile'
+
+describe('audio file names', () => {
+  it('adds the mp3 extension and keeps Chinese characters', () => {
+    expect(normalizeMp3FileName('三年级第一课')).toEqual({ ok: true, fileName: '三年级第一课.mp3' })
+  })
+
+  it('does not duplicate an existing mp3 extension', () => {
+    expect(normalizeMp3FileName('晨读.MP3')).toEqual({ ok: true, fileName: '晨读.mp3' })
+  })
+
+  it.each(['', '   ', '.mp3'])('rejects an empty file name: %j', (fileName) => {
+    expect(normalizeMp3FileName(fileName)).toEqual({ ok: false, message: '请输入音频文件名。' })
+  })
+
+  it.each(['听写/第一课', '听写:第一课', '听写<第一课>'])('rejects unsafe path characters: %s', (fileName) => {
+    expect(normalizeMp3FileName(fileName)).toEqual({
+      ok: false,
+      message: '文件名不能包含 / \\ : * ? " < > | 等字符。',
+    })
+  })
+
+  it('creates a stable dated default file name', () => {
+    expect(createDefaultAudioFileName(new Date(2026, 8, 16, 9, 5))).toBe('听写音频-20260916-0905.mp3')
+  })
+})
 
 describe('countChineseChars', () => {
   it.each([

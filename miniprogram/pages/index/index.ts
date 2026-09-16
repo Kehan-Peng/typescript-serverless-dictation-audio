@@ -1,5 +1,6 @@
 import { DEFAULT_SPEED, DEFAULT_VOICE_ID } from '../../config/index'
 import type { BusinessStatus, DictationItem, GenerateAudioResponse } from '../../types/dictation'
+import { createDefaultAudioFileName, normalizeMp3FileName } from '../../utils/audioFile'
 import { parseInput } from '../../utils/parser'
 import { buildTtsText, validateItemsForGeneration } from '../../utils/ttsText'
 
@@ -13,8 +14,12 @@ interface PageData {
   speed: number | string
   status: BusinessStatus
   audioPath: string
+  fileName: string
+  savedAudioPath: string
   isPlaying: boolean
+  isSaving: boolean
   errorMessage: string
+  saveMessage: string
 }
 
 function isGenerateAudioResponse(value: unknown): value is GenerateAudioResponse {
@@ -53,6 +58,75 @@ function writeBase64Audio(audioBase64: string): Promise<string> {
   })
 }
 
+function isRemotePath(path: string): boolean {
+  return /^https?:\/\//i.test(path)
+}
+
+function copyAudioFile(srcPath: string, destPath: string): Promise<string> {
+  if (srcPath === destPath) return Promise.resolve(destPath)
+  try {
+    wx.getFileSystemManager().unlinkSync(destPath)
+  } catch {
+    // It is normal for the chosen destination not to exist yet.
+  }
+  return new Promise((resolve, reject) => {
+    wx.getFileSystemManager().copyFile({
+      srcPath,
+      destPath,
+      success: () => resolve(destPath),
+      fail: reject,
+    })
+  })
+}
+
+function downloadAudioFile(url: string, destPath: string): Promise<string> {
+  try {
+    wx.getFileSystemManager().unlinkSync(destPath)
+  } catch {
+    // It is normal for the chosen destination not to exist yet.
+  }
+  return new Promise((resolve, reject) => {
+    wx.downloadFile({
+      url,
+      filePath: destPath,
+      timeout: 60_000,
+      success: (result) => {
+        if (result.statusCode >= 200 && result.statusCode < 300) resolve(destPath)
+        else reject(new Error(`DOWNLOAD_HTTP_${result.statusCode}`))
+      },
+      fail: reject,
+    })
+  })
+}
+
+function persistAudioFile(sourcePath: string, fileName: string): Promise<string> {
+  const destPath = `${wx.env.USER_DATA_PATH}/${fileName}`
+  return isRemotePath(sourcePath) ? downloadAudioFile(sourcePath, destPath) : copyAudioFile(sourcePath, destPath)
+}
+
+type ExportTarget = 'disk' | 'share' | 'devtools'
+
+function exportAudioFile(filePath: string, fileName: string): Promise<ExportTarget> {
+  return new Promise((resolve, reject) => {
+    const platform = wx.getDeviceInfo().platform
+    if (platform === 'devtools') {
+      resolve('devtools')
+      return
+    }
+    if (platform === 'windows' || platform === 'mac') {
+      wx.saveFileToDisk({ filePath, success: () => resolve('disk'), fail: reject })
+      return
+    }
+    wx.shareFileMessage({ filePath, fileName, success: () => resolve('share'), fail: reject })
+  })
+}
+
+function getWxErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object' && 'errMsg' in error) return String(error.errMsg)
+  return String(error)
+}
+
 Page<PageData, WechatMiniprogram.IAnyObject>({
   data: {
     rawText: '',
@@ -61,8 +135,12 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     speed: DEFAULT_SPEED,
     status: 'idle',
     audioPath: '',
+    fileName: '',
+    savedAudioPath: '',
     isPlaying: false,
+    isSaving: false,
     errorMessage: '',
+    saveMessage: '',
   },
 
   onUnload() {
@@ -73,9 +151,13 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     disposeAudio()
     this.setData({
       audioPath: '',
+      fileName: '',
+      savedAudioPath: '',
       isPlaying: false,
+      isSaving: false,
       status: nextStatus,
       errorMessage: '',
+      saveMessage: '',
     })
   },
 
@@ -147,7 +229,13 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         return
       }
       const audioPath = await this.prepareAudio(callResult.result)
-      this.setData({ status: 'success', audioPath })
+      this.setData({
+        status: 'success',
+        audioPath,
+        fileName: createDefaultAudioFileName(),
+        savedAudioPath: '',
+        saveMessage: '',
+      })
     } catch (error) {
       console.error('generateAudio 调用失败', error)
       this.setData({ status: 'error', errorMessage: '生成失败，请稍后重试。' })
@@ -174,6 +262,43 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     if (!audioContext || !this.data.audioPath) return
     if (this.data.isPlaying) audioContext.pause()
     else audioContext.play()
+  },
+
+  onFileNameInput(event: WechatMiniprogram.Input) {
+    this.setData({ fileName: event.detail.value, savedAudioPath: '', saveMessage: '', errorMessage: '' })
+  },
+
+  async onDownloadAudio() {
+    if (!this.data.audioPath || this.data.isSaving) return
+    const normalized = normalizeMp3FileName(this.data.fileName)
+    if (!normalized.ok) {
+      this.setData({ errorMessage: normalized.message, saveMessage: '' })
+      return
+    }
+
+    this.setData({ isSaving: true, fileName: normalized.fileName, errorMessage: '', saveMessage: '' })
+    try {
+      const savedAudioPath = await persistAudioFile(this.data.audioPath, normalized.fileName)
+      this.setData({ savedAudioPath, saveMessage: `已准备 ${normalized.fileName}` })
+      const exportTarget = await exportAudioFile(savedAudioPath, normalized.fileName)
+      if (exportTarget === 'devtools') {
+        this.setData({ saveMessage: '已保存到开发者工具本地；请使用真机测试导出。' })
+        wx.showToast({ title: '本地文件已准备', icon: 'success' })
+      } else {
+        this.setData({ saveMessage: 'MP3 已导出。' })
+        wx.showToast({ title: 'MP3 已导出', icon: 'success' })
+      }
+    } catch (error) {
+      const errorMessage = getWxErrorMessage(error)
+      if (errorMessage.includes('cancel')) {
+        this.setData({ saveMessage: '已取消导出，音频仍可继续播放。' })
+      } else {
+        console.error('MP3 导出失败', error)
+        this.setData({ errorMessage: 'MP3 下载失败，请稍后重试。', saveMessage: '' })
+      }
+    } finally {
+      this.setData({ isSaving: false })
+    }
   },
 
   onBackToEdit() {

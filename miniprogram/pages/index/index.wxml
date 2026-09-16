@@ -83,10 +83,29 @@
 
   <view class="card result" wx:if="{{audioPath}}">
     <text class="section-title">音频已生成</text>
-    <text class="result-note">当前结果不会永久保存，请及时播放。</text>
+    <text class="result-note">可以直接播放，也可以自定义名称后导出 MP3。</text>
     <view class="player-actions">
       <button class="primary-button player-button" bindtap="onTogglePlay">{{isPlaying ? '暂停' : '播放'}}</button>
       <button class="secondary-button player-button" bindtap="onBackToEdit">返回修改</button>
     </view>
+    <label class="download-field">
+      <text class="field-label">MP3 文件名</text>
+      <input
+        class="text-input"
+        value="{{fileName}}"
+        maxlength="84"
+        placeholder="例如：三年级第一课.mp3"
+        bindinput="onFileNameInput"
+        disabled="{{isSaving}}"
+      />
+    </label>
+    <button
+      class="download-button"
+      bindtap="onDownloadAudio"
+      loading="{{isSaving}}"
+      disabled="{{isSaving}}"
+    >{{isSaving ? '正在准备 MP3…' : '下载 MP3'}}</button>
+    <text class="save-message" wx:if="{{saveMessage}}">{{saveMessage}}</text>
+    <text class="download-hint">电脑端会打开保存窗口；手机端会打开微信文件导出界面。</text>
   </view>
 </view>

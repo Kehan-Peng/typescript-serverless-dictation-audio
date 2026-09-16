@@ -30,3 +30,8 @@
 .result-note { display: block; margin-top: 12rpx; }
 .player-actions { display: flex; gap: 20rpx; }
 .player-button { flex: 1; }
+.download-field { display: block; margin-top: 30rpx; padding-top: 26rpx; border-top: 2rpx solid #e5e7eb; }
+.download-button { margin-top: 20rpx; color: #fff; background: #059669; border-radius: 14rpx; font-size: 30rpx; font-weight: 600; }
+.download-button[disabled] { color: rgba(255,255,255,.75); background: #94a3b8; }
+.save-message { display: block; margin-top: 14rpx; color: #047857; font-size: 25rpx; text-align: center; }
+.download-hint { display: block; margin-top: 14rpx; color: #667085; font-size: 23rpx; line-height: 1.5; text-align: center; }
