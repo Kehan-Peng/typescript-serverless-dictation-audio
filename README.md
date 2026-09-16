@@ -118,14 +118,15 @@ npm audit --omit=dev
 
 ```text
 TTS_PROVIDER=tencent
-TENCENTCLOUD_SECRET_ID=你的 SecretId
-TENCENTCLOUD_SECRET_KEY=你的 SecretKey
+TENCENT_SECRET_ID=你的 SecretId
+TENCENT_SECRET_KEY=你的 SecretKey
 TENCENT_TTS_VOICE_TYPE=101011
 MINIMAX_API_KEY=可选，用于腾讯超限或不兼容停顿时 fallback
 ```
 
 - `TENCENT_TTS_VOICE_TYPE` 未设置时默认 `101011`，即官方音色表中的新闻女声“智燕”。可在腾讯云控制台试听后换成其他整数 VoiceType。
-- `TENCENTCLOUD_REGION` 对 `TextToVoice` 是可选参数，通常无需创建；只有账号或后续官方要求指定时再填写，例如 `ap-guangzhou`。
+- `TENCENT_TTS_REGION` 对 `TextToVoice` 是可选参数，通常无需创建；只有账号或后续官方要求指定时再填写，例如 `ap-guangzhou`。
+- 微信云函数禁止自定义 Key 使用 `TENCENTCLOUD_`、`SCF_` 或 `QCLOUD_` 保留前缀，因此凭证变量使用 `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY`。
 - 没有配置 `MINIMAX_API_KEY` 时，腾讯超限或额度耗尽会返回友好错误，不会拆段或重复请求腾讯。
 
 ### 免费额度优先、MiniMax 兜底
@@ -335,8 +336,8 @@ Secret 只由云函数从环境变量读取。日志仅记录 Provider、Request
 - 微信小程序 AppID
 - 微信云开发 Environment ID
 - 腾讯云 TTS 服务和免费资源包
-- `TENCENTCLOUD_SECRET_ID`
-- `TENCENTCLOUD_SECRET_KEY`
+- `TENCENT_SECRET_ID`
+- `TENCENT_SECRET_KEY`
 - 可选的 `TENCENT_TTS_VOICE_TYPE`
 - MiniMax 模式或 fallback 使用的 `MINIMAX_API_KEY`
 

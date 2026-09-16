@@ -12,7 +12,7 @@ const miniMaxClient = createMiniMaxClient({
 })
 
 const hasTencentCredentials = Boolean(
-  process.env.TENCENTCLOUD_SECRET_ID?.trim() && process.env.TENCENTCLOUD_SECRET_KEY?.trim(),
+  process.env.TENCENT_SECRET_ID?.trim() && process.env.TENCENT_SECRET_KEY?.trim(),
 )
 const provider = resolveTtsProvider(process.env.TTS_PROVIDER, hasTencentCredentials)
 
@@ -24,8 +24,8 @@ function getTencentVoiceType(): number {
 function createMainHandler() {
   if (provider === 'minimax') return createGenerateAudioHandler(miniMaxClient)
 
-  const secretId = process.env.TENCENTCLOUD_SECRET_ID ?? ''
-  const secretKey = process.env.TENCENTCLOUD_SECRET_KEY ?? ''
+  const secretId = process.env.TENCENT_SECRET_ID ?? ''
+  const secretKey = process.env.TENCENT_SECRET_KEY ?? ''
   const tencentClient = createTencentClient({
     secretId,
     secretKey,
@@ -33,7 +33,7 @@ function createMainHandler() {
     transport: createTencentSdkTransport({
       secretId,
       secretKey,
-      region: process.env.TENCENTCLOUD_REGION ?? '',
+      region: process.env.TENCENT_TTS_REGION ?? '',
     }),
   })
   return createGenerateAudioHandler(tencentClient, {
