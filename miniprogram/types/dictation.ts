@@ -15,5 +15,6 @@ export interface GenerateAudioRequest {
 }
 
 export type GenerateAudioResponse =
-  | { ok: true; audioUrl: string; audioLengthMs?: number }
+  | { ok: true; audioUrl: string; audioBase64?: never; audioLengthMs?: number }
+  | { ok: true; audioBase64: string; audioUrl?: never; audioLengthMs?: number }
   | { ok: false; errorCode: string; message: string }

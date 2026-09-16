@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.nodeHttpsTransport = exports.MiniMaxError = exports.TimeoutError = void 0;
 exports.createMiniMaxClient = createMiniMaxClient;
 const node_https_1 = __importDefault(require("node:https"));
+const tts_1 = require("./tts");
 const MINIMAX_ENDPOINT = 'https://api.minimax.cn/v1/t2a_v2';
 const REQUEST_TIMEOUT_MS = 45000;
 class TimeoutError extends Error {
@@ -15,10 +16,9 @@ class TimeoutError extends Error {
     }
 }
 exports.TimeoutError = TimeoutError;
-class MiniMaxError extends Error {
+class MiniMaxError extends tts_1.TtsError {
     constructor(code, traceId, upstreamStatusCode, upstreamStatusMessage) {
-        super(code);
-        this.code = code;
+        super(code, 'minimax', traceId, upstreamStatusCode);
         this.traceId = traceId;
         this.upstreamStatusCode = upstreamStatusCode;
         this.upstreamStatusMessage = upstreamStatusMessage;

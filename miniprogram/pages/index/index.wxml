@@ -50,11 +50,11 @@
   <view class="card" wx:if="{{items.length}}">
     <text class="section-title">3. 语音设置</text>
     <label class="field">
-      <text class="field-label">Voice ID</text>
+      <text class="field-label">音色</text>
       <input
         class="text-input"
         value="{{voiceId}}"
-        placeholder="填写 MiniMax voice_id"
+        placeholder="使用默认音色"
         bindinput="onVoiceIdInput"
         disabled="{{status === 'generating'}}"
       />
@@ -76,14 +76,14 @@
       loading="{{status === 'generating'}}"
       disabled="{{status === 'generating'}}"
     >{{status === 'generating' ? '正在生成…' : '生成听写音频'}}</button>
-    <text class="hint">每次生成只调用一次 MiniMax，通常需要稍等片刻。</text>
+    <text class="hint">每次生成只调用一次语音服务，通常需要稍等片刻。</text>
   </view>
 
   <view class="message error" wx:if="{{errorMessage}}">{{errorMessage}}</view>
 
-  <view class="card result" wx:if="{{audioUrl}}">
+  <view class="card result" wx:if="{{audioPath}}">
     <text class="section-title">音频已生成</text>
-    <text class="result-note">链接临时有效，请及时播放。</text>
+    <text class="result-note">当前结果不会永久保存，请及时播放。</text>
     <view class="player-actions">
       <button class="primary-button player-button" bindtap="onTogglePlay">{{isPlaying ? '暂停' : '播放'}}</button>
       <button class="secondary-button player-button" bindtap="onBackToEdit">返回修改</button>

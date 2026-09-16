@@ -1,18 +1,11 @@
 import https from 'node:https'
+import { TtsError, type TtsGenerateRequest, type TtsGenerateResult } from './tts'
 
 const MINIMAX_ENDPOINT = 'https://api.minimax.cn/v1/t2a_v2'
 const REQUEST_TIMEOUT_MS = 45_000
 
-export interface MiniMaxGenerateRequest {
-  text: string
-  voiceId: string
-  speed: number
-}
-
-export interface MiniMaxGenerateResult {
-  audioUrl: string
-  audioLengthMs?: number
-}
+export type MiniMaxGenerateRequest = TtsGenerateRequest
+export type MiniMaxGenerateResult = Extract<TtsGenerateResult, { audioUrl: string }>
 
 export interface TransportResponse {
   statusCode: number
@@ -34,14 +27,14 @@ export class TimeoutError extends Error {
   }
 }
 
-export class MiniMaxError extends Error {
+export class MiniMaxError extends TtsError {
   constructor(
-    public readonly code: 'CONFIG_ERROR' | 'TIMEOUT' | 'UPSTREAM_HTTP_ERROR' | 'UPSTREAM_API_ERROR' | 'INVALID_RESPONSE',
+    code: 'CONFIG_ERROR' | 'TIMEOUT' | 'UPSTREAM_HTTP_ERROR' | 'UPSTREAM_API_ERROR' | 'INVALID_RESPONSE',
     public readonly traceId?: string,
     public readonly upstreamStatusCode?: number,
     public readonly upstreamStatusMessage?: string,
   ) {
-    super(code)
+    super(code, 'minimax', traceId, upstreamStatusCode)
     this.name = 'MiniMaxError'
   }
 }

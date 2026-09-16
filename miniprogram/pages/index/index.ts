@@ -4,6 +4,7 @@ import { parseInput } from '../../utils/parser'
 import { buildTtsText, validateItemsForGeneration } from '../../utils/ttsText'
 
 let audioContext: WechatMiniprogram.InnerAudioContext | null = null
+const LOCAL_AUDIO_PATH = `${wx.env.USER_DATA_PATH}/dictation-audio.mp3`
 
 interface PageData {
   rawText: string
@@ -11,15 +12,45 @@ interface PageData {
   voiceId: string
   speed: number | string
   status: BusinessStatus
-  audioUrl: string
+  audioPath: string
   isPlaying: boolean
   errorMessage: string
 }
 
 function isGenerateAudioResponse(value: unknown): value is GenerateAudioResponse {
   if (!value || typeof value !== 'object' || !('ok' in value)) return false
-  const response = value as Partial<GenerateAudioResponse>
-  return typeof response.ok === 'boolean'
+  const response = value as Record<string, unknown>
+  if (response.ok === false) return typeof response.message === 'string'
+  if (response.ok !== true) return false
+  const hasUrl = typeof response.audioUrl === 'string' && response.audioUrl.length > 0
+  const hasBase64 = typeof response.audioBase64 === 'string' && response.audioBase64.length > 0
+  return hasUrl !== hasBase64
+}
+
+function disposeAudio() {
+  audioContext?.stop()
+  audioContext?.destroy()
+  audioContext = null
+  try {
+    wx.getFileSystemManager().unlinkSync(LOCAL_AUDIO_PATH)
+  } catch {
+    // The temporary Tencent audio file may not exist yet.
+  }
+}
+
+function writeBase64Audio(audioBase64: string): Promise<string> {
+  if (audioBase64.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(audioBase64)) {
+    return Promise.reject(new Error('INVALID_BASE64_AUDIO'))
+  }
+  return new Promise((resolve, reject) => {
+    wx.getFileSystemManager().writeFile({
+      filePath: LOCAL_AUDIO_PATH,
+      data: audioBase64,
+      encoding: 'base64',
+      success: () => resolve(LOCAL_AUDIO_PATH),
+      fail: reject,
+    })
+  })
 }
 
 Page<PageData, WechatMiniprogram.IAnyObject>({
@@ -29,20 +60,19 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     voiceId: DEFAULT_VOICE_ID,
     speed: DEFAULT_SPEED,
     status: 'idle',
-    audioUrl: '',
+    audioPath: '',
     isPlaying: false,
     errorMessage: '',
   },
 
   onUnload() {
-    audioContext?.destroy()
-    audioContext = null
+    disposeAudio()
   },
 
   invalidateGeneratedAudio(nextStatus: BusinessStatus = 'parsed') {
-    audioContext?.stop()
+    disposeAudio()
     this.setData({
-      audioUrl: '',
+      audioPath: '',
       isPlaying: false,
       status: nextStatus,
       errorMessage: '',
@@ -94,7 +124,7 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
     const voiceId = this.data.voiceId.trim()
     const speed = Number(this.data.speed)
     if (!voiceId) {
-      this.setData({ status: 'error', errorMessage: '请填写可用的 Voice ID。' })
+      this.setData({ status: 'error', errorMessage: '请填写可用的音色。' })
       return
     }
     if (!Number.isFinite(speed) || speed < 0.5 || speed > 2) {
@@ -102,8 +132,8 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       return
     }
 
-    audioContext?.stop()
-    this.setData({ status: 'generating', audioUrl: '', isPlaying: false, errorMessage: '' })
+    disposeAudio()
+    this.setData({ status: 'generating', audioPath: '', isPlaying: false, errorMessage: '' })
 
     try {
       const text = buildTtsText(this.data.items)
@@ -116,18 +146,19 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
         this.setData({ status: 'error', errorMessage: callResult.result.message })
         return
       }
-      this.prepareAudio(callResult.result.audioUrl)
-      this.setData({ status: 'success', audioUrl: callResult.result.audioUrl })
+      const audioPath = await this.prepareAudio(callResult.result)
+      this.setData({ status: 'success', audioPath })
     } catch (error) {
       console.error('generateAudio 调用失败', error)
       this.setData({ status: 'error', errorMessage: '生成失败，请稍后重试。' })
     }
   },
 
-  prepareAudio(audioUrl: string) {
-    audioContext?.destroy()
+  async prepareAudio(result: Extract<GenerateAudioResponse, { ok: true }>): Promise<string> {
+    disposeAudio()
+    const audioPath = result.audioUrl ?? (await writeBase64Audio(result.audioBase64))
     audioContext = wx.createInnerAudioContext()
-    audioContext.src = audioUrl
+    audioContext.src = audioPath
     audioContext.onPlay(() => this.setData({ isPlaying: true }))
     audioContext.onPause(() => this.setData({ isPlaying: false }))
     audioContext.onStop(() => this.setData({ isPlaying: false }))
@@ -136,10 +167,11 @@ Page<PageData, WechatMiniprogram.IAnyObject>({
       console.error('音频播放失败', error.errCode, error.errMsg)
       this.setData({ isPlaying: false, errorMessage: '音频播放失败，请稍后重试。' })
     })
+    return audioPath
   },
 
   onTogglePlay() {
-    if (!audioContext || !this.data.audioUrl) return
+    if (!audioContext || !this.data.audioPath) return
     if (this.data.isPlaying) audioContext.pause()
     else audioContext.play()
   },
